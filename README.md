@@ -1,2 +1,30 @@
-# MAT
-A 3D model format
+# Model Animation Texture
+![LICENSE](https://img.shields.io/badge/LICENSE-MIT-green.svg)
+
+MAT is a simple yet efficient 3D file format intended for embedded applications.
+
+## Features
+- Single-file decoding library
+- Big-endian binary format for better portability
+- Flat data structure for easy parsing
+- Variable fixed point encoding
+- Supports multiple meshes in a single file
+- Supports vertex attributes for normals, texture coordinates and skinning
+- Supports custom attributes and metadata
+
+## How to use
+- [mat.h](mat.h) single-file decoding library
+- [debug.c](debug.c) test code that prints out the attributes
+
+## TODO
+- Animation specification
+- Collada conversion tool
+- API documentation
+
+## Why?
+
+You may be asking why I made this when there are already many existing 3D formats out there. MAT is not intended to displace those. I actually created this because I needed a highly efficient runtime format with specific requirements for my [ICE](https://github.com/0x1ED1CE/ICE) game engine. I just decided to open a separate repository for those interested in using it.
+
+## License
+This software is free to use. You can modify it and redistribute it under the terms of the 
+MIT license. Check [LICENSE](LICENSE) for further details.
