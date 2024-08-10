@@ -15,6 +15,7 @@ MAT is a simple yet efficient 3D file format intended for embedded applications.
 ## How to use
 - [mat.h](mat.h) single-file decoding library
 - [debug.c](debug.c) test code that prints out the attributes
+- [obj2mat.lua](obj2mat.lua) tool for converting .obj files to .mat
 
 ## TODO
 - Animation specification
