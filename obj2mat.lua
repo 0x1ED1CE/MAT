@@ -247,7 +247,7 @@ end
 if #arg==0 then
 	print(
 		"OBJ2MAT Copyright (C) 2024 Dice\n"..
-		"Usage: iso <options> -i <file> -e <file>\n\n"..
+		"Usage: lua obj2mat.lua <options> -i <file> -e <file>\n\n"..
 		"-i\tImport source\n"..
 		"-e\tExport binary\n"..
 		"-d\tDiscard names\n"..
