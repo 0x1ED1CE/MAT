@@ -1,7 +1,7 @@
 # Model Animation Texture
 ![LICENSE](https://img.shields.io/badge/LICENSE-MIT-green.svg)
 
-MAT is a simple yet efficient 3D file format intended for embedded applications.
+MAT is a simple yet efficient 3D format intended for embedded applications.
 
 ## Features
 - Single-file decoding library
@@ -24,7 +24,7 @@ MAT is a simple yet efficient 3D file format intended for embedded applications.
 
 ## Why?
 
-You may be asking why I made this when there are already many existing 3D formats out there. MAT is not intended to displace those. I actually created this because I needed a highly efficient runtime format with specific requirements for my [ICE](https://github.com/0x1ED1CE/ICE) game engine. I just decided to open a separate repository for those interested in using it.
+You may be asking why I made this when there are already many other formats out there. MAT is not intended to displace those. I created this because I needed a highly efficient runtime format with specific requirements for my [ICE](https://github.com/0x1ED1CE/ICE) game engine, which others could not fulfill.
 
 ## License
 This software is free to use. You can modify it and redistribute it under the terms of the 
