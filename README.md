@@ -24,7 +24,7 @@ MAT is a simple yet efficient 3D format intended for embedded applications.
 
 ## Why?
 
-You may be asking why I made this when there are already many other formats out there. MAT is not intended to displace those. I created this because I needed a highly efficient runtime format with specific requirements for my [game engine](https://github.com/0x1ED1CE/ICE), which others could not fulfill.
+You may be asking why I made this when there are many other already existing formats out there. MAT is not intended to displace those. I created this because I needed a highly efficient runtime format with specific requirements for my [game engine](https://github.com/0x1ED1CE/ICE) which others could not fulfill.
 
 ## License
 This software is free to use. You can modify it and redistribute it under the terms of the 
