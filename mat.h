@@ -467,7 +467,7 @@ void mat_animation_free(
 
 	if (animation->name_data!=NULL) free(animation->name_data);
 	if (animation->pose_data!=NULL) free(animation->pose_data);
-	if (animation->name_data!=NULL) free(animation->name_data);
+	if (animation->slot_data!=NULL) free(animation->slot_data);
 	if (animation->time_data!=NULL) free(animation->time_data);
 
 	free(animation);
