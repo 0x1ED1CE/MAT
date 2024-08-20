@@ -7,13 +7,11 @@ Lua 5.4 must be installed to run this tool.
 
 local attributes={
 	META = string.char(0x00),
-	NAME = string.char(0x10),
+	MESH = string.char(0x10),
 	VERT = string.char(0x22),
 	NORM = string.char(0x32),
 	TEXT = string.char(0x41),
-	FACE = string.char(0x58),
-	BIND = string.char(0x60),
-	POSE = string.char(0x7F)
+	FACE = string.char(0x58)
 }
 
 local function encode_uint(value,wordsize)
@@ -71,7 +69,7 @@ local function append_vector2(list,x,y)
 	return (#list-2)/2
 end
 
-local function fixed_type(list)
+local function get_precision(list)
 	local max_integer = 0
 	local integer     = 0
 	local fraction    = 0
@@ -169,13 +167,13 @@ local function export_mat(model,precision,export_name)
 		local textures = {}
 
 		if export_name then
-			name_data[#name_data+1] = attributes.NAME
+			name_data[#name_data+1] = attributes.MESH
 			name_data[#name_data+1] = string.char(0x00)
 			name_data[#name_data+1] = encode_uint(#faces.name,4)
 			name_data[#name_data+1] = faces.name
 		end
 
-		local fi,ff = fixed_type(faces)
+		local fi,ff = get_precision(faces)
 
 		face_data[#face_data+1] = attributes.FACE
 		face_data[#face_data+1] = string.char(fi<<4)
@@ -205,9 +203,9 @@ local function export_mat(model,precision,export_name)
 			face_data[#face_data+1] = encode_fixed(t,fi,0)
 		end
 
-		local vi,vf = fixed_type(vertices)
-		local ni,nf = fixed_type(normals)
-		local ti,tf = fixed_type(textures)
+		local vi,vf = get_precision(vertices)
+		local ni,nf = get_precision(normals)
+		local ti,tf = get_precision(textures)
 
 		vf = math.min(vf,precision)
 		nf = math.min(nf,precision)

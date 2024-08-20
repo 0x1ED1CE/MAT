@@ -24,19 +24,22 @@ SOFTWARE.
 
 #ifndef MAT_H
 #define MAT_H
-#include <stdio.h>
 
-#define MAT_VERSION 2
+#define MAT_VERSION 3
 
 #define MAT_ATTRIBUTE_META 0x00
-#define MAT_ATTRIBUTE_NAME 0x10
+#define MAT_ATTRIBUTE_MESH 0x10
 #define MAT_ATTRIBUTE_VERT 0x22
 #define MAT_ATTRIBUTE_NORM 0x32
 #define MAT_ATTRIBUTE_TEXT 0x41
 #define MAT_ATTRIBUTE_FACE 0x58
-#define MAT_ATTRIBUTE_BIND 0x60
-#define MAT_ATTRIBUTE_POSE 0x7F
-#define MAT_ATTRIBUTE_TIME 0x80
+#define MAT_ATTRIBUTE_SKIN 0x60
+#define MAT_ATTRIBUTE_ANIM 0x70
+#define MAT_ATTRIBUTE_POSE 0x8F
+#define MAT_ATTRIBUTE_SLOT 0x90
+#define MAT_ATTRIBUTE_TIME 0xA0
+
+// MESH
 
 typedef struct {
 	char          *name_data;
@@ -45,23 +48,15 @@ typedef struct {
 	float         *norm_data;
 	float         *text_data;
 	unsigned int  *face_data;
-	unsigned int  *bind_data;
+	unsigned int  *skin_data;
 	unsigned int   name_size;
 	unsigned int   meta_size;
 	unsigned int   vert_size;
 	unsigned int   norm_size;
 	unsigned int   text_size;
 	unsigned int   face_size;
-	unsigned int   bind_size;
+	unsigned int   skin_size;
 } mat_mesh;
-
-void mat_file_decode(
-	FILE         *mat_file,
-	unsigned int  attribute,
-	unsigned int  id,
-	unsigned int *size,
-	void        **data
-);
 
 mat_mesh* mat_mesh_load(
 	char        *filename,
@@ -71,10 +66,50 @@ mat_mesh* mat_mesh_load(
 void mat_mesh_free(
 	mat_mesh *mesh
 );
+
+void mat_mesh_normalize(
+	mat_mesh *mesh
+);
+
+// ANIMATION
+
+typedef struct {
+	char         *name_data;
+	float        *pose_data;
+	float        *time_data;
+	unsigned int *slot_data;
+	unsigned int  name_size;
+	unsigned int  pose_size;
+	unsigned int  slot_size;
+	unsigned int  time_size;
+} mat_animation;
+
+mat_animation* mat_animation_load(
+	char        *filename,
+	unsigned int id
+);
+
+void mat_animation_free(
+	mat_animation *animation
+);
+
 #endif
 
+/************************[IMPLEMENTATION BEGINS HERE]*************************/
+
 #ifdef MAT_IMPLEMENTATION
+
+#include <stdio.h>
+#include <float.h>
 #include <malloc.h>
+
+#ifndef MAT_MIN
+#define MAT_MIN(A,B) ((A)<(B)?(A):(B));
+#endif
+
+#ifndef MAT_MAX
+#define MAT_MAX(A,B) ((A)>(B)?(A):(B));
+#endif
 
 static unsigned int mat_file_decode_uint(
 	FILE *mat_file
@@ -141,20 +176,32 @@ void mat_file_decode(
 		if (attribute_type==attribute) {
 			if (attribute_id==id) {
 				switch(attribute) {
-					case MAT_ATTRIBUTE_NAME:
-						*data=malloc(attribute_count+1);
+					case MAT_ATTRIBUTE_MESH:
+					case MAT_ATTRIBUTE_ANIM:
+						*data=calloc(
+							attribute_count+1,
+							sizeof(char)
+						);
 						break;
 					case MAT_ATTRIBUTE_META:
-						*data=malloc(attribute_count);
+						*data=calloc(
+							attribute_count,
+							sizeof(unsigned char)
+						);
 						break;
 					case MAT_ATTRIBUTE_FACE:
-						*data=malloc(attribute_count*sizeof(unsigned int));
-						break;
-					case MAT_ATTRIBUTE_BIND:
-						*data=malloc(attribute_count*sizeof(unsigned int));
+					case MAT_ATTRIBUTE_SKIN:
+					case MAT_ATTRIBUTE_SLOT:
+						*data=calloc(
+							attribute_count,
+							sizeof(unsigned int)
+						);
 						break;
 					default:
-						*data=malloc(attribute_count*sizeof(float));
+						*data=calloc(
+							attribute_count,
+							sizeof(float)
+						);
 				}
 
 				if (*data==NULL) {
@@ -171,25 +218,21 @@ void mat_file_decode(
 					);
 
 					switch(attribute) {
-						case MAT_ATTRIBUTE_NAME:
+						case MAT_ATTRIBUTE_MESH:
+						case MAT_ATTRIBUTE_ANIM:
 							((char*)(*data))[i]=(char)value;
 							break;
 						case MAT_ATTRIBUTE_META:
 							((unsigned char*)(*data))[i]=(unsigned char)value;
 							break;
 						case MAT_ATTRIBUTE_FACE:
-							((unsigned int*)(*data))[i]=(unsigned int)value;
-							break;
-						case MAT_ATTRIBUTE_BIND:
+						case MAT_ATTRIBUTE_SKIN:
+						case MAT_ATTRIBUTE_SLOT:
 							((unsigned int*)(*data))[i]=(unsigned int)value;
 							break;
 						default:
 							((float*)(*data))[i]=value;
 					}
-				}
-
-				if (attribute==MAT_ATTRIBUTE_NAME) {
-					((char*)(*data))[attribute_count]='\0';
 				}
 
 				return;
@@ -219,6 +262,8 @@ void mat_file_decode(
 	return;
 }
 
+// MESH
+
 mat_mesh* mat_mesh_load(
 	char        *filename,
 	unsigned int id
@@ -242,14 +287,7 @@ mat_mesh* mat_mesh_load(
 
 	mat_file_decode(
 		mat_file,
-		MAT_ATTRIBUTE_VERT,
-		id,
-		&mesh->vert_size,
-		(void**)&mesh->vert_data
-	);
-	mat_file_decode(
-		mat_file,
-		MAT_ATTRIBUTE_NAME,
+		MAT_ATTRIBUTE_MESH,
 		id,
 		&mesh->name_size,
 		(void**)&mesh->name_data
@@ -260,6 +298,13 @@ mat_mesh* mat_mesh_load(
 		id,
 		&mesh->meta_size,
 		(void**)&mesh->meta_data
+	);
+	mat_file_decode(
+		mat_file,
+		MAT_ATTRIBUTE_VERT,
+		id,
+		&mesh->vert_size,
+		(void**)&mesh->vert_data
 	);
 	mat_file_decode(
 		mat_file,
@@ -284,10 +329,10 @@ mat_mesh* mat_mesh_load(
 	);
 	mat_file_decode(
 		mat_file,
-		MAT_ATTRIBUTE_BIND,
+		MAT_ATTRIBUTE_SKIN,
 		id,
-		&mesh->bind_size,
-		(void**)&mesh->bind_data
+		&mesh->skin_size,
+		(void**)&mesh->skin_data
 	);
 
 	fclose(mat_file);
@@ -308,8 +353,124 @@ void mat_mesh_free(
 	if (mesh->norm_data!=NULL) free(mesh->norm_data);
 	if (mesh->text_data!=NULL) free(mesh->text_data);
 	if (mesh->face_data!=NULL) free(mesh->face_data);
-	if (mesh->bind_data!=NULL) free(mesh->bind_data);
+	if (mesh->skin_data!=NULL) free(mesh->skin_data);
 
 	free(mesh);
 }
+
+void mat_mesh_normalize(
+	mat_mesh *mesh
+) {
+	if (
+		mesh==NULL ||
+		mesh->vert_data==NULL
+	) {
+		return;
+	}
+
+	float min_x = FLT_MAX;
+	float min_y = FLT_MAX;
+	float min_z = FLT_MAX;
+
+	float max_x = -FLT_MAX;
+	float max_y = -FLT_MAX;
+	float max_z = -FLT_MAX;
+
+	for (unsigned int i=0; i<mesh->vert_size; i+=3) {
+		min_x = MAT_MIN(min_x,mesh->vert_data[i]);
+		min_y = MAT_MIN(min_y,mesh->vert_data[i+1]);
+		min_z = MAT_MIN(min_z,mesh->vert_data[i+2]);
+
+		max_x = MAT_MAX(max_x,mesh->vert_data[i]);
+		max_y = MAT_MAX(max_y,mesh->vert_data[i+1]);
+		max_z = MAT_MAX(max_z,mesh->vert_data[i+2]);
+	}
+
+	float size_x = max_x-min_x;
+	float size_y = max_y-min_y;
+	float size_z = max_z-min_z;
+
+	float center_x = (min_x+max_x)/2;
+	float center_y = (min_y+max_y)/2;
+	float center_z = (min_z+max_z)/2;
+
+	for (unsigned int i=0; i<mesh->vert_size; i+=3) {
+		mesh->vert_data[i]   = (mesh->vert_data[i]-center_x)/size_x;
+		mesh->vert_data[i+1] = (mesh->vert_data[i+1]-center_y)/size_y;
+		mesh->vert_data[i+2] = (mesh->vert_data[i+2]-center_z)/size_z;
+	}
+}
+
+// ANIMATION
+
+mat_animation* mat_animation_load(
+	char        *filename,
+	unsigned int id
+) {
+	FILE *mat_file=fopen(
+		filename,
+		"rb"
+	);
+
+	if (mat_file==NULL) {
+		return NULL;
+	}
+
+	mat_animation *animation=malloc(sizeof(mat_animation));
+
+	if (animation==NULL) {
+		fclose(mat_file);
+
+		return NULL;
+	}
+
+	mat_file_decode(
+		mat_file,
+		MAT_ATTRIBUTE_ANIM,
+		id,
+		&animation->name_size,
+		(void**)&animation->name_data
+	);
+	mat_file_decode(
+		mat_file,
+		MAT_ATTRIBUTE_POSE,
+		id,
+		&animation->pose_size,
+		(void**)&animation->pose_data
+	);
+	mat_file_decode(
+		mat_file,
+		MAT_ATTRIBUTE_SLOT,
+		id,
+		&animation->slot_size,
+		(void**)&animation->slot_data
+	);
+	mat_file_decode(
+		mat_file,
+		MAT_ATTRIBUTE_TIME,
+		id,
+		&animation->time_size,
+		(void**)&animation->time_data
+	);
+
+	fclose(mat_file);
+
+	return animation;
+}
+
+void mat_animation_free(
+	mat_animation *animation
+) {
+	if (animation==NULL) {
+		return;
+	}
+
+	if (animation->name_data!=NULL) free(animation->name_data);
+	if (animation->pose_data!=NULL) free(animation->pose_data);
+	if (animation->name_data!=NULL) free(animation->name_data);
+	if (animation->time_data!=NULL) free(animation->time_data);
+
+	free(animation);
+}
+
 #endif
