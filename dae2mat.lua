@@ -852,9 +852,9 @@ for _,argument in ipairs(arg) do
 
 		file:close()
 	elseif option=="-p" then
-		precision=math.max(tonumber(argument) or 2,0)
+		precision=tonumber(argument) or 2
 	elseif option=="-f" then
-		precision=math.max(tonumber(argument) or 15,0)
+		framerate=tonumber(argument) or 15
 	else
 		print("Invalid option")
 
