@@ -25,14 +25,14 @@ SOFTWARE.
 #ifndef MAT_H
 #define MAT_H
 
-#define MAT_VERSION 3
+#define MAT_VERSION 4
 
 #define MAT_ATTRIBUTE_META 0x00
 #define MAT_ATTRIBUTE_MESH 0x10
 #define MAT_ATTRIBUTE_VERT 0x22
 #define MAT_ATTRIBUTE_NORM 0x32
-#define MAT_ATTRIBUTE_TEXT 0x41
-#define MAT_ATTRIBUTE_FACE 0x58
+#define MAT_ATTRIBUTE_TINT 0x42
+#define MAT_ATTRIBUTE_TEXT 0x51
 #define MAT_ATTRIBUTE_SKIN 0x60
 #define MAT_ATTRIBUTE_ANIM 0x70
 #define MAT_ATTRIBUTE_POSE 0x8F
@@ -42,20 +42,18 @@ SOFTWARE.
 // MESH
 
 typedef struct {
-	char          *name_data;
-	unsigned char *meta_data;
-	float         *vert_data;
-	float         *norm_data;
-	float         *text_data;
-	unsigned int  *face_data;
-	unsigned int  *skin_data;
-	unsigned int   name_size;
-	unsigned int   meta_size;
-	unsigned int   vert_size;
-	unsigned int   norm_size;
-	unsigned int   text_size;
-	unsigned int   face_size;
-	unsigned int   skin_size;
+	char         *name_data;
+	float        *vert_data;
+	float        *norm_data;
+	float        *tint_data;
+	float        *text_data;
+	unsigned int *skin_data;
+	unsigned int  name_size;
+	unsigned int  vert_size;
+	unsigned int  norm_size;
+	unsigned int  tint_size;
+	unsigned int  text_size;
+	unsigned int  skin_size;
 } mat_mesh;
 
 mat_mesh* mat_mesh_load(
@@ -189,7 +187,6 @@ void mat_file_decode(
 							sizeof(unsigned char)
 						);
 						break;
-					case MAT_ATTRIBUTE_FACE:
 					case MAT_ATTRIBUTE_SKIN:
 					case MAT_ATTRIBUTE_SLOT:
 						*data=calloc(
@@ -225,7 +222,6 @@ void mat_file_decode(
 						case MAT_ATTRIBUTE_META:
 							((unsigned char*)(*data))[i]=(unsigned char)value;
 							break;
-						case MAT_ATTRIBUTE_FACE:
 						case MAT_ATTRIBUTE_SKIN:
 						case MAT_ATTRIBUTE_SLOT:
 							((unsigned int*)(*data))[i]=(unsigned int)value;
@@ -294,13 +290,6 @@ mat_mesh* mat_mesh_load(
 	);
 	mat_file_decode(
 		mat_file,
-		MAT_ATTRIBUTE_META,
-		id,
-		&mesh->meta_size,
-		(void**)&mesh->meta_data
-	);
-	mat_file_decode(
-		mat_file,
 		MAT_ATTRIBUTE_VERT,
 		id,
 		&mesh->vert_size,
@@ -315,17 +304,17 @@ mat_mesh* mat_mesh_load(
 	);
 	mat_file_decode(
 		mat_file,
+		MAT_ATTRIBUTE_TINT,
+		id,
+		&mesh->tint_size,
+		(void**)&mesh->tint_data
+	);
+	mat_file_decode(
+		mat_file,
 		MAT_ATTRIBUTE_TEXT,
 		id,
 		&mesh->text_size,
 		(void**)&mesh->text_data
-	);
-	mat_file_decode(
-		mat_file,
-		MAT_ATTRIBUTE_FACE,
-		id,
-		&mesh->face_size,
-		(void**)&mesh->face_data
 	);
 	mat_file_decode(
 		mat_file,
@@ -348,11 +337,10 @@ void mat_mesh_free(
 	}
 
 	if (mesh->name_data!=NULL) free(mesh->name_data);
-	if (mesh->meta_data!=NULL) free(mesh->meta_data);
 	if (mesh->vert_data!=NULL) free(mesh->vert_data);
 	if (mesh->norm_data!=NULL) free(mesh->norm_data);
+	if (mesh->tint_data!=NULL) free(mesh->tint_data);
 	if (mesh->text_data!=NULL) free(mesh->text_data);
-	if (mesh->face_data!=NULL) free(mesh->face_data);
 	if (mesh->skin_data!=NULL) free(mesh->skin_data);
 
 	free(mesh);

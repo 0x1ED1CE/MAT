@@ -50,23 +50,6 @@ int main() {
 			}
 		}
 
-		if (mesh->face_data!=NULL) {
-			printf("\n[FACES]\n");
-
-			for (unsigned int i=0; i<mesh->face_size; i+=9) {
-				for (unsigned int j=0; j<9; j+=3) {
-					printf(
-						"%u, %u, %u    ",
-						(unsigned int)mesh->face_data[i+j],
-						(unsigned int)mesh->face_data[i+j+1],
-						(unsigned int)mesh->face_data[i+j+2]
-					);
-				}
-
-				printf("\n");
-			}
-		}
-
 		mat_mesh_free(mesh);
 
 		mesh = mat_mesh_load("test.mat",++mesh_id);

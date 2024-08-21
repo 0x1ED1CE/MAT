@@ -181,8 +181,8 @@ local attributes={
 	MESH = string.char(0x10),
 	VERT = string.char(0x22),
 	NORM = string.char(0x32),
-	TEXT = string.char(0x41),
-	FACE = string.char(0x58),
+	TINT = string.char(0x42),
+	TEXT = string.char(0x51),
 	SKIN = string.char(0x60),
 	ANIM = string.char(0x70),
 	POSE = string.char(0x8F),
@@ -209,40 +209,6 @@ local function encode_fixed(value,integer,fraction)
 		math.floor(value),
 		integer+fraction
 	)
-end
-
-local function append_vector3(list,x,y,z)
-	x = x or 0
-	y = y or 0
-	z = z or 0
-
-	for i=1,#list,3 do
-		if list[i]==x and list[i+1]==y and list[i+2]==z then
-			return (i-1)/3
-		end
-	end
-
-	list[#list+1] = x
-	list[#list+1] = y
-	list[#list+1] = z
-
-	return (#list-3)/3
-end
-
-local function append_vector2(list,x,y)
-	x = x or 0
-	y = y or 0
-
-	for i=1,#list,2 do
-		if list[i]==x and list[i+1]==y then
-			return (i-1)/2
-		end
-	end
-
-	list[#list+1] = x
-	list[#list+1] = y
-
-	return (#list-2)/2
 end
 
 local function get_precision(list)
@@ -487,34 +453,22 @@ local function import_dae(data)
 		groups[#groups+1] = faces
 	end
 
-	local animation       = {}
-	local inv_bind_matrix = {}
-	local weights         = {}
+	local animation = {}
+	local weights   = {}
 
 	for _,source in pairs(xml.COLLADA.library_controllers.controller.skin.source) do
 		if source["@id"]:find("joints") then
 			for value in source.Name_array:value():gmatch("%S+") do
 				animation[#animation+1] = {
-					joint               = value,
-					frame_time          = {},
-					frame_pose          = {},
-					inverse_bind_matrix = {}
+					joint      = value,
+					frame_time = {},
+					frame_pose = {}
 				}
-			end
-		elseif source["@id"]:find("bind_poses") then
-			for value in source.float_array:value():gmatch("%S+") do
-				inv_bind_matrix[#inv_bind_matrix+1] = tonumber(value)
 			end
 		elseif source["@id"]:find("weights") then
 			for value in source.float_array:value():gmatch("%S+") do
 				weights[#weights+1] = tonumber(value)
 			end
-		end
-	end
-	
-	for i,segment in ipairs(animation) do
-		for j=1,16 do
-			segment.inverse_bind_matrix[j] = inv_bind_matrix[(i-1)*16+j]
 		end
 	end
 
@@ -604,8 +558,8 @@ local function export_mat(model,animation,precision,framerate)
 	local mesh_data = {}
 	local vert_data = {}
 	local norm_data = {}
+	local tint_data = {}
 	local text_data = {}
-	local face_data = {}
 	local skin_data = {}
 	local anim_data = {}
 	local pose_data = {}
@@ -625,36 +579,19 @@ local function export_mat(model,animation,precision,framerate)
 			mesh_data[#mesh_data+1] = faces.name
 		end
 
-		local fi,ff = get_precision(faces)
-
-		face_data[#face_data+1] = attributes.FACE
-		face_data[#face_data+1] = string.char(fi<<4)
-		face_data[#face_data+1] = encode_uint(#faces,4)
-
 		for i=1,#faces,3 do
-			local v = append_vector3(
-				vertices,
-				model.vertices[faces[i]*3+1],
-				model.vertices[faces[i]*3+2],
-				model.vertices[faces[i]*3+3]
-			)
-			local n = append_vector3(
-				normals,
-				model.normals[faces[i+1]*3+1],
-				model.normals[faces[i+1]*3+2],
-				model.normals[faces[i+1]*3+3]
-			)
-			local t = append_vector2(
-				textures,
-				model.textures[faces[i+2]*2+1],
-				1-model.textures[faces[i+2]*2+2]
-			)
+			vertices[#vertices+1] = model.vertices[faces[i]*3+1]
+			vertices[#vertices+1] = model.vertices[faces[i]*3+2]
+			vertices[#vertices+1] = model.vertices[faces[i]*3+3]
 
-			skin[v+1] = model.skin[faces[i]+1]
+			normals[#normals+1] = model.normals[faces[i+1]*3+1]
+			normals[#normals+1] = model.normals[faces[i+1]*3+2]
+			normals[#normals+1] = model.normals[faces[i+1]*3+3]
 
-			face_data[#face_data+1] = encode_fixed(v,fi,0)
-			face_data[#face_data+1] = encode_fixed(n,fi,0)
-			face_data[#face_data+1] = encode_fixed(t,fi,0)
+			textures[#textures+1] = model.textures[faces[i+2]*2+1]
+			textures[#textures+1] = 1-model.textures[faces[i+2]*2+2]
+
+			skin[#skin+1] = model.skin[faces[i]+1]
 		end
 
 		local vi,vf = get_precision(vertices)
@@ -752,6 +689,10 @@ local function export_mat(model,animation,precision,framerate)
 		local si,sf = get_precision(slots)
 		local ti,tf = get_precision(times)
 
+		pf = math.min(pf,precision)
+		sf = math.min(sf,precision)
+		tf = math.min(tf,precision)
+
 		pose_data[#pose_data+1] = attributes.POSE
 		pose_data[#pose_data+1] = string.char((pi<<4)|pf)
 		pose_data[#pose_data+1] = encode_uint(#poses,4)
@@ -779,8 +720,8 @@ local function export_mat(model,animation,precision,framerate)
 		table.concat(mesh_data)..
 		table.concat(vert_data)..
 		table.concat(norm_data)..
+		table.concat(tint_data)..
 		table.concat(text_data)..
-		table.concat(face_data)..
 		table.concat(skin_data)..
 		table.concat(anim_data)..
 		table.concat(pose_data)..

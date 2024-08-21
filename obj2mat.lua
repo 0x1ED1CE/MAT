@@ -10,8 +10,13 @@ local attributes={
 	MESH = string.char(0x10),
 	VERT = string.char(0x22),
 	NORM = string.char(0x32),
-	TEXT = string.char(0x41),
-	FACE = string.char(0x58)
+	TINT = string.char(0x42),
+	TEXT = string.char(0x51),
+	SKIN = string.char(0x60),
+	ANIM = string.char(0x70),
+	POSE = string.char(0x8F),
+	SLOT = string.char(0x90),
+	TIME = string.char(0xA0)
 }
 
 local function encode_uint(value,wordsize)
@@ -33,40 +38,6 @@ local function encode_fixed(value,integer,fraction)
 		math.floor(value),
 		integer+fraction
 	)
-end
-
-local function append_vector3(list,x,y,z)
-	x = x or 0
-	y = y or 0
-	z = z or 0
-
-	for i=1,#list,3 do
-		if list[i]==x and list[i+1]==y and list[i+2]==z then
-			return (i-1)/3
-		end
-	end
-
-	list[#list+1] = x
-	list[#list+1] = y
-	list[#list+1] = z
-
-	return (#list-3)/3
-end
-
-local function append_vector2(list,x,y)
-	x = x or 0
-	y = y or 0
-
-	for i=1,#list,2 do
-		if list[i]==x and list[i+1]==y then
-			return (i-1)/2
-		end
-	end
-
-	list[#list+1] = x
-	list[#list+1] = y
-
-	return (#list-2)/2
 end
 
 local function get_precision(list)
@@ -158,8 +129,8 @@ local function export_mat(model,precision,export_name)
 	local name_data = {}
 	local vert_data = {}
 	local norm_data = {}
+	local tint_data = {}
 	local text_data = {}
-	local face_data = {}
 
 	for _,faces in ipairs(model.groups) do
 		local vertices = {}
@@ -173,34 +144,17 @@ local function export_mat(model,precision,export_name)
 			name_data[#name_data+1] = faces.name
 		end
 
-		local fi,ff = get_precision(faces)
-
-		face_data[#face_data+1] = attributes.FACE
-		face_data[#face_data+1] = string.char(fi<<4)
-		face_data[#face_data+1] = encode_uint(#faces,4)
-
 		for i=1,#faces,3 do
-			local v = append_vector3(
-				vertices,
-				model.vertices[faces[i]*3+1],
-				model.vertices[faces[i]*3+2],
-				model.vertices[faces[i]*3+3]
-			)
-			local n = append_vector3(
-				normals,
-				model.normals[faces[i+1]*3+1],
-				model.normals[faces[i+1]*3+2],
-				model.normals[faces[i+1]*3+3]
-			)
-			local t = append_vector2(
-				textures,
-				model.textures[faces[i+2]*2+1],
-				model.textures[faces[i+2]*2+2]
-			)
+			vertices[#vertices+1] = model.vertices[faces[i]*3+1]
+			vertices[#vertices+1] = model.vertices[faces[i]*3+2]
+			vertices[#vertices+1] = model.vertices[faces[i]*3+3]
 
-			face_data[#face_data+1] = encode_fixed(v,fi,0)
-			face_data[#face_data+1] = encode_fixed(n,fi,0)
-			face_data[#face_data+1] = encode_fixed(t,fi,0)
+			normals[#normals+1] = model.normals[faces[i+1]*3+1]
+			normals[#normals+1] = model.normals[faces[i+1]*3+2]
+			normals[#normals+1] = model.normals[faces[i+1]*3+3]
+
+			textures[#textures+1] = model.textures[faces[i+2]*2+1]
+			textures[#textures+1] = model.textures[faces[i+2]*2+2]
 		end
 
 		local vi,vf = get_precision(vertices)
@@ -238,8 +192,8 @@ local function export_mat(model,precision,export_name)
 		table.concat(name_data)..
 		table.concat(vert_data)..
 		table.concat(norm_data)..
-		table.concat(text_data)..
-		table.concat(face_data)
+		table.concat(tint_data)..
+		table.concat(text_data)
 end
 
 if #arg==0 then
@@ -306,7 +260,7 @@ for _,argument in ipairs(arg) do
 	elseif option=="-d" then
 		discard_names=true
 	elseif option=="-p" then
-		precision=math.max(tonumber(argument) or 2,0)
+		precision=tonumber(argument) or 2
 	else
 		print("Invalid option")
 
