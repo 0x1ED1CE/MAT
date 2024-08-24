@@ -8,6 +8,7 @@ MAT is a simple yet efficient 3D format intended for embedded applications.
 - Big-endian binary format for better portability
 - Flat data structure for easy parsing
 - Variable fixed point encoding
+- Quaternion animation encoding for size and efficiency
 - Supports multiple meshes and animations in a single file
 - Supports vertex attributes for normals, colors, uv and skinning
 - Supports custom attributes and metadata
