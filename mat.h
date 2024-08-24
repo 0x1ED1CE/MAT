@@ -25,7 +25,7 @@ SOFTWARE.
 #ifndef MAT_H
 #define MAT_H
 
-#define MAT_VERSION 4
+#define MAT_VERSION 6
 
 #define MAT_ATTRIBUTE_META 0x00
 #define MAT_ATTRIBUTE_MESH 0x10
@@ -35,7 +35,7 @@ SOFTWARE.
 #define MAT_ATTRIBUTE_TEXT 0x51
 #define MAT_ATTRIBUTE_SKIN 0x60
 #define MAT_ATTRIBUTE_ANIM 0x70
-#define MAT_ATTRIBUTE_POSE 0x8F
+#define MAT_ATTRIBUTE_POSE 0x88
 #define MAT_ATTRIBUTE_SLOT 0x90
 #define MAT_ATTRIBUTE_TIME 0xA0
 
@@ -91,6 +91,13 @@ void mat_animation_free(
 	mat_animation *animation
 );
 
+void mat_animation_pose(
+	mat_animation *animation,
+	float          time,
+	unsigned int   bone,
+	float          pose[16]
+);
+
 #endif
 
 /************************[IMPLEMENTATION BEGINS HERE]*************************/
@@ -108,6 +115,8 @@ void mat_animation_free(
 #ifndef MAT_MAX
 #define MAT_MAX(A,B) ((A)>(B)?(A):(B));
 #endif
+
+// DECODING FUNCTIONS
 
 static unsigned int mat_file_decode_uint(
 	FILE *mat_file
@@ -258,7 +267,7 @@ void mat_file_decode(
 	return;
 }
 
-// MESH
+// MESH FUNCTIONS
 
 mat_mesh* mat_mesh_load(
 	char        *filename,
@@ -389,7 +398,53 @@ void mat_mesh_normalize(
 	}
 }
 
-// ANIMATION
+// ANIMATION FUNCTIONS
+
+void mat_animation_pose_interpolate(
+	float pose_a[7],
+	float pose_b[7],
+	float pose_c[7],
+	float t
+) {
+	// TODO
+}
+
+void mat_animation_pose_matrix(
+	float pose_data[7],
+	float transform[16]
+) {
+	float qx = pose_data[3];
+	float qy = pose_data[4];
+	float qz = pose_data[5];
+	float qw = pose_data[6];
+
+	float qxqx = qx*qx;
+	float qyqy = qy*qy;
+	float qzqz = qz*qz;
+	float qxqy = qx*qy;
+	float qxqz = qx*qz;
+	float qyqz = qy*qz;
+	float qxqw = qx*qw;
+	float qyqw = qy*qw;
+	float qzqw = qz*qw;
+
+	transform[0]  = 1-2*qyqy-2*qzqz;
+	transform[1]  = 2*(qxqy-qzqw);
+	transform[2]  = 2*(qxqz+qyqw);
+	transform[3]  = pose_data[0];
+	transform[4]  = 2*(qxqy+qzqw);
+	transform[5]  = 1-2*qxqx-2*qzqz;
+	transform[6]  = 2*(qyqz-qxqw);
+	transform[7]  = pose_data[1];
+	transform[8]  = 2*(qxqz-qyqw);
+	transform[9]  = 2*(qyqz+qxqw);
+	transform[10] = 1-2*qxqx-2*qyqy;
+	transform[11] = pose_data[2];
+	transform[12] = 0;
+	transform[13] = 0;
+	transform[14] = 0;
+	transform[15] = 1;
+}
 
 mat_animation* mat_animation_load(
 	char        *filename,
@@ -459,6 +514,33 @@ void mat_animation_free(
 	if (animation->time_data!=NULL) free(animation->time_data);
 
 	free(animation);
+}
+
+void mat_animation_pose(
+	mat_animation *animation,
+	float          time,
+	unsigned int   bone,
+	float          pose[16]
+) {
+	if (animation==NULL) {
+		return;
+	}
+
+	float        *pose_data = animation->pose_data;
+	float        *time_data = animation->time_data;
+	unsigned int *slot_data = animation->slot_data;
+	unsigned int  pose_size = animation->pose_size;
+	unsigned int  time_size = animation->time_size;
+	unsigned int  slot_size = animation->slot_size;
+
+	float duration = time_data[time_size-1];
+
+	unsigned int slot_a = (unsigned int)(time/duration*(float)(slot_size-1));
+
+	mat_animation_pose_matrix(
+		&pose_data[slot_data[slot_a]*7+bone*7],
+		pose
+	);
 }
 
 #endif
