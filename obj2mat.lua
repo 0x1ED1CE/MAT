@@ -132,12 +132,13 @@ local function export_mat(model,precision,export_name)
 	local tint_data = {}
 	local text_data = {}
 
-	for _,faces in ipairs(model.groups) do
+	for id,faces in ipairs(model.groups) do
 		local vertices = {}
 		local normals  = {}
 		local textures = {}
 
 		if export_name then
+			name_data[#name_data+1] = encode_uint(id-1,4)
 			name_data[#name_data+1] = attributes.MESH
 			name_data[#name_data+1] = string.char(0x00)
 			name_data[#name_data+1] = encode_uint(#faces.name,4)
@@ -165,14 +166,17 @@ local function export_mat(model,precision,export_name)
 		nf = math.min(nf,precision)
 		tf = math.min(tf,precision)
 
+		vert_data[#vert_data+1] = encode_uint(id-1,4)
 		vert_data[#vert_data+1] = attributes.VERT
 		vert_data[#vert_data+1] = string.char((vi<<4)|vf)
 		vert_data[#vert_data+1] = encode_uint(#vertices,4)
 
+		norm_data[#norm_data+1] = encode_uint(id-1,4)
 		norm_data[#norm_data+1] = attributes.NORM
 		norm_data[#norm_data+1] = string.char((ni<<4)|nf)
 		norm_data[#norm_data+1] = encode_uint(#normals,4)
 
+		text_data[#text_data+1] = encode_uint(id-1,4)
 		text_data[#text_data+1] = attributes.TEXT
 		text_data[#text_data+1] = string.char((ti<<4)|tf)
 		text_data[#text_data+1] = encode_uint(#textures,4)

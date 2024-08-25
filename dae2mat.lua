@@ -600,13 +600,14 @@ local function export_mat(model,animation,precision,framerate)
 	local slot_data = {}
 	local time_data = {}
 
-	for _,faces in ipairs(model.groups) do
+	for id,faces in ipairs(model.groups) do
 		local vertices = {}
 		local normals  = {}
 		local textures = {}
 		local skin     = {}
 
 		if faces.name then
+			mesh_data[#mesh_data+1] = encode_uint(id-1,4)
 			mesh_data[#mesh_data+1] = attributes.MESH
 			mesh_data[#mesh_data+1] = string.char(0x00)
 			mesh_data[#mesh_data+1] = encode_uint(#faces.name,4)
@@ -637,14 +638,17 @@ local function export_mat(model,animation,precision,framerate)
 		nf = math.min(nf,precision)
 		tf = math.min(tf,precision)
 
+		vert_data[#vert_data+1] = encode_uint(id-1,4)
 		vert_data[#vert_data+1] = attributes.VERT
 		vert_data[#vert_data+1] = string.char((vi<<4)|vf)
 		vert_data[#vert_data+1] = encode_uint(#vertices,4)
 
+		norm_data[#norm_data+1] = encode_uint(id-1,4)
 		norm_data[#norm_data+1] = attributes.NORM
 		norm_data[#norm_data+1] = string.char((ni<<4)|nf)
 		norm_data[#norm_data+1] = encode_uint(#normals,4)
 
+		text_data[#text_data+1] = encode_uint(id-1,4)
 		text_data[#text_data+1] = attributes.TEXT
 		text_data[#text_data+1] = string.char((ti<<4)|tf)
 		text_data[#text_data+1] = encode_uint(#textures,4)
@@ -660,6 +664,7 @@ local function export_mat(model,animation,precision,framerate)
 		end
 
 		if #skin>0 then
+			skin_data[#skin_data+1] = encode_uint(id-1,4)
 			skin_data[#skin_data+1] = attributes.SKIN
 			skin_data[#skin_data+1] = string.char((si<<4)|sf)
 			skin_data[#skin_data+1] = encode_uint(#skin,4)
@@ -734,14 +739,17 @@ local function export_mat(model,animation,precision,framerate)
 		sf = math.min(sf,precision)
 		tf = math.min(tf,precision)
 
+		pose_data[#pose_data+1] = encode_uint(0,4)
 		pose_data[#pose_data+1] = attributes.POSE
 		pose_data[#pose_data+1] = string.char((pi<<4)|pf)
 		pose_data[#pose_data+1] = encode_uint(#poses,4)
 
+		slot_data[#slot_data+1] = encode_uint(0,4)
 		slot_data[#slot_data+1] = attributes.SLOT
 		slot_data[#slot_data+1] = string.char((si<<4)|sf)
 		slot_data[#slot_data+1] = encode_uint(#slots,4)
 
+		time_data[#time_data+1] = encode_uint(0,4)
 		time_data[#time_data+1] = attributes.TIME
 		time_data[#time_data+1] = string.char((ti<<4)|tf)
 		time_data[#time_data+1] = encode_uint(#times,4)
