@@ -3,6 +3,8 @@
 
 MAT is a simple yet efficient 3D format intended for embedded applications.
 
+<img src="/screenshots/miku.gif?raw=true">
+
 ## Features
 - Single-file decoding library
 - Big-endian binary format for better portability
