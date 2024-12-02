@@ -185,7 +185,7 @@ local attributes={
 	TEXT = string.char(0x51),
 	SKIN = string.char(0x60),
 	ANIM = string.char(0x70),
-	POSE = string.char(0x88),
+	POSE = string.char(0x8B),
 	SLOT = string.char(0x90),
 	TIME = string.char(0xA0)
 }
@@ -244,15 +244,15 @@ local function get_precision(list)
 end
 
 local function mat4_mul(a,b)
-	local a11,a12,a13,a14=a[1],a[2],a[3],a[4]
-	local a21,a22,a23,a24=a[5],a[6],a[7],a[8]
-	local a31,a32,a33,a34=a[9],a[10],a[11],a[12]
-	local a41,a42,a43,a44=a[13],a[14],a[15],a[16]
+	local a11,a12,a13,a14 = a[1],  a[2],  a[3],  a[4]
+	local a21,a22,a23,a24 = a[5],  a[6],  a[7],  a[8]
+	local a31,a32,a33,a34 = a[9],  a[10], a[11], a[12]
+	local a41,a42,a43,a44 = a[13], a[14], a[15], a[16]
 
-	local b11,b12,b13,b14=b[1],b[2],b[3],b[4]
-	local b21,b22,b23,b24=b[5],b[6],b[7],b[8]
-	local b31,b32,b33,b34=b[9],b[10],b[11],b[12]
-	local b41,b42,b43,b44=b[13],b[14],b[15],b[16]
+	local b11,b12,b13,b14 = b[1],  b[2],  b[3],  b[4]
+	local b21,b22,b23,b24 = b[5],  b[6],  b[7],  b[8]
+	local b31,b32,b33,b34 = b[9],  b[10], b[11], b[12]
+	local b41,b42,b43,b44 = b[13], b[14], b[15], b[16]
 
 	return {
 		a11*b11+a12*b21+a13*b31+a14*b41,
@@ -275,10 +275,10 @@ local function mat4_mul(a,b)
 end
 
 local function mat4_inv(a)
-	local a11,a12,a13,a14=a[1],a[2],a[3],a[4]
-	local a21,a22,a23,a24=a[5],a[6],a[7],a[8]
-	local a31,a32,a33,a34=a[9],a[10],a[11],a[12]
-	local a41,a42,a43,a44=a[13],a[14],a[15],a[16]
+	local a11,a12,a13,a14 = a[1],  a[2],  a[3],  a[4]
+	local a21,a22,a23,a24 = a[5],  a[6],  a[7],  a[8]
+	local a31,a32,a33,a34 = a[9],  a[10], a[11], a[12]
+	local a41,a42,a43,a44 = a[13], a[14], a[15], a[16]
 
 	local c11 =  a22*a33*a44-a22*a34*a43-a32*a23*a44+a32*a24*a43+a42*a23*a34-a42*a24*a33
 	local c12 = -a12*a33*a44+a12*a34*a43+a32*a13*a44-a32*a14*a43-a42*a13*a34+a42*a14*a33
@@ -309,66 +309,6 @@ local function mat4_inv(a)
 		c31/det,c32/det,c33/det,c34/det,
 		c41/det,c42/det,c43/det,c44/det
 	}
-end
-
-local function mat4_quat(a)
-	local a11,a12,a13,a14=a[1],a[2],a[3],a[4]
-	local a21,a22,a23,a24=a[5],a[6],a[7],a[8]
-	local a31,a32,a33,a34=a[9],a[10],a[11],a[12]
-	local a41,a42,a43,a44=a[13],a[14],a[15],a[16]
-
-	local q1 = (a11-a22-a33+1)/4
-	local q2 = (-a11+a22-a33+1)/4
-	local q3 = (-a11-a22+a33+1)/4
-	local q4 = (a11+a22+a33+1)/4
-
-	if (q1<0) then
-		q1=0
-	end
-	if (q2<0) then
-		q2=0
-	end
-	if (q3<0) then
-		q3=0
-	end
-	if (q4<0) then
-		q4=0
-	end
-
-	q1 = math.sqrt(q1)
-	q2 = math.sqrt(q2)
-	q3 = math.sqrt(q3)
-	q4 = math.sqrt(q4)
-
-	if q4 >= q1 and q4 >= q2 and q4 >= q3 then
-		q1 = q1*sign(a32-a23)
-		q2 = q2*sign(a13-a31)
-		q3 = q3*sign(a21-a12)
-		q4 = q4*1
-	elseif q1 >= q4 and q1 >= q2 and q1 >= q3 then
-		q1 = q1*1
-		q2 = q2*sign(a21+a12)
-		q3 = q3*sign(a13+a31)
-		q4 = q4*sign(a32-a23)
-	elseif q2 >= q4 and q2 >= q1 and q2 >= q3 then
-		q1 = q1*sign(a21+a12)
-		q2 = q2*1
-		q3 = q3*sign(a32+a23)
-		q4 = q4*sign(a13-a31)
-	elseif q3 >= q4 and q3 >= q1 and q3 >= q2 then
-		q1 = q1*sign(a31+a13)
-		q2 = q2*sign(a32+a23)
-		q3 = q3*1
-		q4 = q4*sign(a21-a12)
-	end
-
-	local m = math.sqrt(q1^2+q2^2+q3^2+q4^2)
-
-	return q1/m,q2/m,q3/m,q4/m
-end
-
-local function mat4_pos(a)
-	return a[4],a[8],a[12]
 end
 
 local function get_bone_hierarchy(parent,animation)
@@ -712,20 +652,13 @@ local function export_mat(model,animation,precision,framerate)
 				end
 			end
 
-			slots[#slots+1] = #poses/7
+			slots[#slots+1] = #poses/12
 			times[#times+1] = time_
 
 			for _,segment in ipairs(animation.animation) do
-				local x,y,z       = mat4_pos(inverse_transforms[segment.joint])
-				local qx,qy,qz,qw = mat4_quat(inverse_transforms[segment.joint])
-
-				poses[#poses+1] = x
-				poses[#poses+1] = y
-				poses[#poses+1] = z
-				poses[#poses+1] = qx
-				poses[#poses+1] = qy
-				poses[#poses+1] = qz
-				poses[#poses+1] = qw
+				for i=1,12 do
+					poses[#poses+1] = inverse_transforms[segment.joint][i]
+				end
 			end
 
 			time_ = time_+1/framerate

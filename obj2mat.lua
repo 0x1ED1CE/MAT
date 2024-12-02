@@ -14,7 +14,7 @@ local attributes={
 	TEXT = string.char(0x51),
 	SKIN = string.char(0x60),
 	ANIM = string.char(0x70),
-	POSE = string.char(0x88),
+	POSE = string.char(0x8B),
 	SLOT = string.char(0x90),
 	TIME = string.char(0xA0)
 }
