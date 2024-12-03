@@ -65,10 +65,6 @@ void mat_mesh_free(
 	mat_mesh *mesh
 );
 
-void mat_mesh_normalize(
-	mat_mesh *mesh
-);
-
 // ANIMATION
 
 typedef struct {
@@ -341,47 +337,6 @@ void mat_mesh_free(
 	free(mesh);
 }
 
-void mat_mesh_normalize(
-	mat_mesh *mesh
-) {
-	if (
-		mesh==NULL ||
-		mesh->vert_data==NULL
-	) return;
-
-	float min_x = FLT_MAX;
-	float min_y = FLT_MAX;
-	float min_z = FLT_MAX;
-
-	float max_x = -FLT_MAX;
-	float max_y = -FLT_MAX;
-	float max_z = -FLT_MAX;
-
-	for (unsigned int i=0; i<mesh->vert_size; i+=3) {
-		min_x = MAT_MIN(min_x,mesh->vert_data[i]);
-		min_y = MAT_MIN(min_y,mesh->vert_data[i+1]);
-		min_z = MAT_MIN(min_z,mesh->vert_data[i+2]);
-
-		max_x = MAT_MAX(max_x,mesh->vert_data[i]);
-		max_y = MAT_MAX(max_y,mesh->vert_data[i+1]);
-		max_z = MAT_MAX(max_z,mesh->vert_data[i+2]);
-	}
-
-	float size_x = max_x-min_x;
-	float size_y = max_y-min_y;
-	float size_z = max_z-min_z;
-
-	float center_x = (min_x+max_x)/2;
-	float center_y = (min_y+max_y)/2;
-	float center_z = (min_z+max_z)/2;
-
-	for (unsigned int i=0; i<mesh->vert_size; i+=3) {
-		mesh->vert_data[i]   = (mesh->vert_data[i]-center_x)/size_x;
-		mesh->vert_data[i+1] = (mesh->vert_data[i+1]-center_y)/size_y;
-		mesh->vert_data[i+2] = (mesh->vert_data[i+2]-center_z)/size_z;
-	}
-}
-
 // ANIMATION FUNCTIONS
 
 mat_animation* mat_animation_load(
@@ -433,6 +388,16 @@ mat_animation* mat_animation_load(
 	);
 
 	fclose(mat_file);
+
+	if (
+		animation->pose_data==NULL ||
+		animation->slot_data==NULL ||
+		animation->time_data==NULL
+	) {
+		mat_animation_free(animation);
+
+		return NULL;
+	}
 
 	return animation;
 }
