@@ -14,6 +14,11 @@ MAT is a simple yet efficient 3D format intended for embedded applications.
 - Supports vertex attributes for normals, colors, uv and skinning
 - Supports custom attributes and metadata
 
+## Limitations
+- Only one bone per vertex allowed
+- No skeletal hierarchy
+- No frame interpolation
+
 ## How to use
 - [mat.h](mat.h) single-file decoding library
 - [debug.c](debug.c) test code that prints out the attributes
