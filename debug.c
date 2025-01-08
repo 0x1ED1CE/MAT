@@ -4,7 +4,7 @@
 #include "mat.h"
 
 int main() {
-	mat_mesh    *mesh = mat_mesh_load("cube.mat",0);;
+	mat_mesh    *mesh = mat_mesh_load_file("cube.mat",0);;
 	unsigned int mesh_id = 0;
 
 	while (mesh!=NULL && mesh->vert_data!=NULL) {
@@ -52,7 +52,7 @@ int main() {
 
 		mat_mesh_free(mesh);
 
-		mesh = mat_mesh_load("test.mat",++mesh_id);
+		mesh = mat_mesh_load_file("cube.mat",++mesh_id);
 	}
 
 	return 0;

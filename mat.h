@@ -1,9 +1,9 @@
 /*
 MIT License
 
-Copyright (c) 2024 Dice
+Copyright (c) 2025 Dice
 
-Permission is hereby granted, free of charge, to any person obtaining a copy 
+Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
@@ -25,7 +25,7 @@ SOFTWARE.
 #ifndef MAT_H
 #define MAT_H
 
-#define MAT_VERSION 9
+#define MAT_VERSION 10
 
 #define MAT_ATTRIBUTE_META 0x00
 #define MAT_ATTRIBUTE_MESH 0x10
@@ -38,6 +38,15 @@ SOFTWARE.
 #define MAT_ATTRIBUTE_POSE 0x8B
 #define MAT_ATTRIBUTE_SLOT 0x90
 #define MAT_ATTRIBUTE_TIME 0xA0
+
+// INTERFACE
+
+typedef struct {
+	void           *user;
+	unsigned char (*read)(void *user);
+	void          (*skip)(void *user,unsigned int unit);
+	unsigned char (*done)(void *user);
+} mat_interface;
 
 // MESH
 
@@ -57,6 +66,11 @@ typedef struct {
 } mat_mesh;
 
 mat_mesh* mat_mesh_load(
+	mat_interface interface,
+	unsigned int  id
+);
+
+mat_mesh* mat_mesh_load_file(
 	char        *filename,
 	unsigned int id
 );
@@ -79,6 +93,11 @@ typedef struct {
 } mat_animation;
 
 mat_animation* mat_animation_load(
+	mat_interface interface,
+	unsigned int  id
+);
+
+mat_animation* mat_animation_load_file(
 	char        *filename,
 	unsigned int id
 );
@@ -108,33 +127,58 @@ void mat_animation_pose(
 #define MAT_MIN(A,B) ((A)<(B)?(A):(B))
 #define MAT_MAX(A,B) ((A)>(B)?(A):(B))
 
-// DECODING FUNCTIONS
+// FILE INTERFACE
 
-static unsigned int mat_file_decode_uint(
-	FILE *mat_file
+unsigned char __mat_file_read(
+	void *user
 ) {
-	return (
-		(unsigned int)fgetc(mat_file)<<24|
-		(unsigned int)fgetc(mat_file)<<16|
-		(unsigned int)fgetc(mat_file)<<8|
-		(unsigned int)fgetc(mat_file)
+	return (unsigned char)fgetc((FILE*)user);
+}
+
+void __mat_file_skip(
+	void        *user,
+	unsigned int unit
+) {
+	fseek(
+		(FILE*)user,
+		(long)unit,
+		SEEK_CUR
 	);
 }
 
-static float mat_file_decode_fixed(
-	FILE    *mat_file,
-	unsigned int integer,
-	unsigned int fraction
+unsigned char __mat_file_done(
+	void *user
+) {
+	return (unsigned char)feof((FILE*)user);
+}
+
+// DECODING FUNCTIONS
+
+static unsigned int mat_decode_uint(
+	mat_interface interface
+) {
+	return (
+		(unsigned int)interface.read(interface.user)<<24|
+		(unsigned int)interface.read(interface.user)<<16|
+		(unsigned int)interface.read(interface.user)<<8|
+		(unsigned int)interface.read(interface.user)
+	);
+}
+
+static float mat_decode_fixed(
+	mat_interface interface,
+	unsigned int  integer,
+	unsigned int  fraction
 ) {
 	if (integer==0 && fraction==0) {
-		return (float)fgetc(mat_file);
+		return (float)interface.read(interface.user);
 	}
 
 	unsigned long encoded = 0;
 	double        decoded;
 
 	for (unsigned int i=0; i<integer+fraction; i++) {
-		encoded=(encoded<<8)|(unsigned long)fgetc(mat_file);
+		encoded=(encoded<<8)|interface.read(interface.user);
 	}
 
 	decoded = (double)encoded;
@@ -144,8 +188,8 @@ static float mat_file_decode_fixed(
 	return (float)decoded;
 }
 
-void mat_file_decode(
-	FILE         *mat_file,
+void mat_decode(
+	mat_interface interface,
 	unsigned int  id,
 	unsigned int  attribute,
 	unsigned int *size,
@@ -154,20 +198,11 @@ void mat_file_decode(
 	*data = NULL;
 	*size = 0;
 
-	if (mat_file==NULL) return;
-
-	fseek(mat_file,0,SEEK_END);
-	unsigned int mat_file_size=ftell(mat_file);
-	fseek(mat_file,0,SEEK_SET);
-
-	while (
-		!ferror(mat_file) &&
-		(unsigned int)ftell(mat_file)<mat_file_size
-	) {
-		unsigned int attribute_id     = mat_file_decode_uint(mat_file);
-		unsigned int attribute_type   = fgetc(mat_file);
-		unsigned int attribute_format = fgetc(mat_file);
-		unsigned int attribute_count  = mat_file_decode_uint(mat_file);
+	while (!interface.done(interface.user)) {
+		unsigned int attribute_id     = mat_decode_uint(interface);
+		unsigned int attribute_type   = interface.read(interface.user);
+		unsigned int attribute_format = interface.read(interface.user);
+		unsigned int attribute_count  = mat_decode_uint(interface);
 
 		if (
 			attribute_id==id &&
@@ -201,15 +236,13 @@ void mat_file_decode(
 					);
 			}
 
-			if (*data==NULL) {
-				return;
-			}
+			if (*data==NULL) return;
 
 			*size=attribute_count;
 
 			for (unsigned int i=0; i<attribute_count; i++) {
-				float value=mat_file_decode_fixed(
-					mat_file,
+				float value=mat_decode_fixed(
+					interface,
 					attribute_format>>4,
 					attribute_format&0x0F
 				);
@@ -235,19 +268,15 @@ void mat_file_decode(
 		}
 
 		if (attribute_format==0) {
-			fseek(
-				mat_file,
-				ftell(mat_file)+
-				attribute_count,
-				SEEK_SET
+			interface.skip(
+				interface.user,
+				attribute_count
 			);
 		} else {
-			fseek(
-				mat_file,
-				ftell(mat_file)+
+			interface.skip(
+				interface.user,
 				attribute_count*
-				((attribute_format>>4)+(attribute_format&0x0F)),
-				SEEK_SET
+				((attribute_format>>4)+(attribute_format&0x0F))
 			);
 		}
 	}
@@ -256,6 +285,60 @@ void mat_file_decode(
 // MESH FUNCTIONS
 
 mat_mesh* mat_mesh_load(
+	mat_interface interface,
+	unsigned int  id
+) {
+	mat_mesh *mesh=malloc(sizeof(mat_mesh));
+
+	if (mesh==NULL) return NULL;
+
+	mat_decode(
+		interface,
+		id,
+		MAT_ATTRIBUTE_MESH,
+		&mesh->name_size,
+		(void**)&mesh->name_data
+	);
+	mat_decode(
+		interface,
+		id,
+		MAT_ATTRIBUTE_VERT,
+		&mesh->vert_size,
+		(void**)&mesh->vert_data
+	);
+	mat_decode(
+		interface,
+		id,
+		MAT_ATTRIBUTE_NORM,
+		&mesh->norm_size,
+		(void**)&mesh->norm_data
+	);
+	mat_decode(
+		interface,
+		id,
+		MAT_ATTRIBUTE_TINT,
+		&mesh->tint_size,
+		(void**)&mesh->tint_data
+	);
+	mat_decode(
+		interface,
+		id,
+		MAT_ATTRIBUTE_TEXT,
+		&mesh->text_size,
+		(void**)&mesh->text_data
+	);
+	mat_decode(
+		interface,
+		id,
+		MAT_ATTRIBUTE_SKIN,
+		&mesh->skin_size,
+		(void**)&mesh->skin_data
+	);
+
+	return mesh;
+}
+
+mat_mesh* mat_mesh_load_file(
 	char        *filename,
 	unsigned int id
 ) {
@@ -266,55 +349,14 @@ mat_mesh* mat_mesh_load(
 
 	if (mat_file==NULL) return NULL;
 
-	mat_mesh *mesh=malloc(sizeof(mat_mesh));
-
-	if (mesh==NULL) {
-		fclose(mat_file);
-
-		return NULL;
-	}
-
-	mat_file_decode(
-		mat_file,
-		id,
-		MAT_ATTRIBUTE_MESH,
-		&mesh->name_size,
-		(void**)&mesh->name_data
-	);
-	mat_file_decode(
-		mat_file,
-		id,
-		MAT_ATTRIBUTE_VERT,
-		&mesh->vert_size,
-		(void**)&mesh->vert_data
-	);
-	mat_file_decode(
-		mat_file,
-		id,
-		MAT_ATTRIBUTE_NORM,
-		&mesh->norm_size,
-		(void**)&mesh->norm_data
-	);
-	mat_file_decode(
-		mat_file,
-		id,
-		MAT_ATTRIBUTE_TINT,
-		&mesh->tint_size,
-		(void**)&mesh->tint_data
-	);
-	mat_file_decode(
-		mat_file,
-		id,
-		MAT_ATTRIBUTE_TEXT,
-		&mesh->text_size,
-		(void**)&mesh->text_data
-	);
-	mat_file_decode(
-		mat_file,
-		id,
-		MAT_ATTRIBUTE_SKIN,
-		&mesh->skin_size,
-		(void**)&mesh->skin_data
+	mat_mesh *mesh=mat_mesh_load(
+		(mat_interface){
+			(void*)mat_file,
+			__mat_file_read,
+			__mat_file_skip,
+			__mat_file_done
+		},
+		id
 	);
 
 	fclose(mat_file);
@@ -340,6 +382,46 @@ void mat_mesh_free(
 // ANIMATION FUNCTIONS
 
 mat_animation* mat_animation_load(
+	mat_interface interface,
+	unsigned int  id
+) {
+	mat_animation *animation=malloc(sizeof(mat_animation));
+
+	if (animation==NULL) return NULL;
+
+	mat_decode(
+		interface,
+		id,
+		MAT_ATTRIBUTE_ANIM,
+		&animation->name_size,
+		(void**)&animation->name_data
+	);
+	mat_decode(
+		interface,
+		id,
+		MAT_ATTRIBUTE_POSE,
+		&animation->pose_size,
+		(void**)&animation->pose_data
+	);
+	mat_decode(
+		interface,
+		id,
+		MAT_ATTRIBUTE_SLOT,
+		&animation->slot_size,
+		(void**)&animation->slot_data
+	);
+	mat_decode(
+		interface,
+		id,
+		MAT_ATTRIBUTE_TIME,
+		&animation->time_size,
+		(void**)&animation->time_data
+	);
+
+	return animation;
+}
+
+mat_animation* mat_animation_load_file(
 	char        *filename,
 	unsigned int id
 ) {
@@ -350,54 +432,17 @@ mat_animation* mat_animation_load(
 
 	if (mat_file==NULL) return NULL;
 
-	mat_animation *animation=malloc(sizeof(mat_animation));
-
-	if (animation==NULL) {
-		fclose(mat_file);
-
-		return NULL;
-	}
-
-	mat_file_decode(
-		mat_file,
-		id,
-		MAT_ATTRIBUTE_ANIM,
-		&animation->name_size,
-		(void**)&animation->name_data
-	);
-	mat_file_decode(
-		mat_file,
-		id,
-		MAT_ATTRIBUTE_POSE,
-		&animation->pose_size,
-		(void**)&animation->pose_data
-	);
-	mat_file_decode(
-		mat_file,
-		id,
-		MAT_ATTRIBUTE_SLOT,
-		&animation->slot_size,
-		(void**)&animation->slot_data
-	);
-	mat_file_decode(
-		mat_file,
-		id,
-		MAT_ATTRIBUTE_TIME,
-		&animation->time_size,
-		(void**)&animation->time_data
+	mat_animation *animation=mat_animation_load(
+		(mat_interface){
+			(void*)mat_file,
+			__mat_file_read,
+			__mat_file_skip,
+			__mat_file_done
+		},
+		id
 	);
 
 	fclose(mat_file);
-
-	if (
-		animation->pose_data==NULL ||
-		animation->slot_data==NULL ||
-		animation->time_data==NULL
-	) {
-		mat_animation_free(animation);
-
-		return NULL;
-	}
 
 	return animation;
 }
