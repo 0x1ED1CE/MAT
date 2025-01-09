@@ -25,7 +25,7 @@ SOFTWARE.
 #ifndef MAT_H
 #define MAT_H
 
-#define MAT_VERSION 10
+#define MAT_VERSION 11
 
 #define MAT_ATTRIBUTE_META 0x00
 #define MAT_ATTRIBUTE_MESH 0x10
@@ -44,8 +44,9 @@ SOFTWARE.
 typedef struct {
 	void           *user;
 	unsigned char (*read)(void *user);
-	void          (*skip)(void *user,unsigned int unit);
-	unsigned char (*done)(void *user);
+	void          (*seek)(void *user,unsigned int unit);
+	unsigned int  (*head)(void *user);
+	unsigned int  (*size)(void *user);
 } mat_interface;
 
 // MESH
@@ -135,21 +136,34 @@ unsigned char __mat_file_read(
 	return (unsigned char)fgetc((FILE*)user);
 }
 
-void __mat_file_skip(
+void __mat_file_seek(
 	void        *user,
 	unsigned int unit
 ) {
 	fseek(
 		(FILE*)user,
 		(long)unit,
-		SEEK_CUR
+		SEEK_SET
 	);
 }
 
-unsigned char __mat_file_done(
+unsigned int __mat_file_head(
 	void *user
 ) {
-	return (unsigned char)feof((FILE*)user);
+	return (unsigned int)ftell((FILE*)user);
+}
+
+unsigned int __mat_file_size(
+	void *user
+) {
+	FILE *file = (FILE*)user;
+	long head  = ftell(file);
+
+	fseek(file,0,SEEK_END);
+	long size=ftell(file);
+	fseek(file,head,SEEK_SET);
+
+	return (unsigned int)size;
 }
 
 // DECODING FUNCTIONS
@@ -198,7 +212,11 @@ void mat_decode(
 	*data = NULL;
 	*size = 0;
 
-	while (!interface.done(interface.user)) {
+	interface.seek(interface.user,0);
+
+	unsigned int mat_size = interface.size(interface.user);
+
+	while (interface.head(interface.user)<mat_size) {
 		unsigned int attribute_id     = mat_decode_uint(interface);
 		unsigned int attribute_type   = interface.read(interface.user);
 		unsigned int attribute_format = interface.read(interface.user);
@@ -268,15 +286,17 @@ void mat_decode(
 		}
 
 		if (attribute_format==0) {
-			interface.skip(
+			interface.seek(
 				interface.user,
-				attribute_count
+				interface.head(interface.user)
+				+attribute_count
 			);
 		} else {
-			interface.skip(
+			interface.seek(
 				interface.user,
-				attribute_count*
-				((attribute_format>>4)+(attribute_format&0x0F))
+				interface.head(interface.user)
+				+attribute_count
+				*((attribute_format>>4)+(attribute_format&0x0F))
 			);
 		}
 	}
@@ -342,10 +362,7 @@ mat_mesh* mat_mesh_load_file(
 	char        *filename,
 	unsigned int id
 ) {
-	FILE *mat_file=fopen(
-		filename,
-		"rb"
-	);
+	FILE *mat_file=fopen(filename,"rb");
 
 	if (mat_file==NULL) return NULL;
 
@@ -353,8 +370,9 @@ mat_mesh* mat_mesh_load_file(
 		(mat_interface){
 			(void*)mat_file,
 			__mat_file_read,
-			__mat_file_skip,
-			__mat_file_done
+			__mat_file_seek,
+			__mat_file_head,
+			__mat_file_size
 		},
 		id
 	);
@@ -425,10 +443,7 @@ mat_animation* mat_animation_load_file(
 	char        *filename,
 	unsigned int id
 ) {
-	FILE *mat_file=fopen(
-		filename,
-		"rb"
-	);
+	FILE *mat_file=fopen(filename,"rb");
 
 	if (mat_file==NULL) return NULL;
 
@@ -436,8 +451,9 @@ mat_animation* mat_animation_load_file(
 		(mat_interface){
 			(void*)mat_file,
 			__mat_file_read,
-			__mat_file_skip,
-			__mat_file_done
+			__mat_file_seek,
+			__mat_file_head,
+			__mat_file_size
 		},
 		id
 	);
@@ -480,11 +496,10 @@ void mat_animation_pose(
 	time = MAT_MAX(time,0);
 	time = MAT_MIN(time,duration);
 
-	unsigned int frame = (unsigned int)(time/duration*(float)(slot_size-1));
+	unsigned int frame = time/duration*(float)(slot_size-1);
+	unsigned int slot  = slot_data[frame]*12+bone*12;
 
 	for (unsigned int i=0; i<12; i++) {
-		unsigned int slot = slot_data[frame]*12+bone*12;
-
 		pose[i] = pose_data[MAT_MIN(slot+i,pose_size-1)];
 	}
 
