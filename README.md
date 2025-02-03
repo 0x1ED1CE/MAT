@@ -16,8 +16,8 @@ MAT is a simple yet efficient 3D format intended for embedded applications.
 
 ## Limitations
 - Only one bone per vertex allowed
-- No skeletal hierarchy
-- No frame interpolation
+- No bone hierarchy
+- No interpolation
 
 ## How to use
 - [mat.h](mat.h) single-file decoding library
